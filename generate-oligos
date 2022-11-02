@@ -1,0 +1,181 @@
+#!/usr/bin/env python3
+
+import argparse
+import csv
+import sys
+from datetime import datetime
+from pathlib import Path
+from textwrap import dedent
+
+OLIGO_GBS = {
+    "rev": dedent(
+        """LOCUS       ClonMapper-REV-i7-NNNNNNNN          47 bp    DNA     linear   UNA {date}
+FEATURES             Location/Qualifiers
+     misc_feature    1..24
+                     /standard_name="P7"
+     misc_feature    complement(25..32)
+                     /standard_name="i7-NNNNNNNN"
+     primer_bind     33..47
+                     /standard_name="Binding Region"
+ORIGIN      
+       {sequence}
+//
+"""
+    ),  # 1 caagcagaag acggcatacg agatnnnnnn nngtctcgtg ggctcgg
+    "fwd": dedent(
+        """LOCUS       ClonMapper-FWD-i5-NNNNNNNN          51 bp    DNA     linear   UNA {date}
+FEATURES             Location/Qualifiers
+     misc_feature    1..20
+                     /standard_name="P5"
+     misc_feature    30..37
+                     /standard_name="i5-NNNNNNNN"
+     primer_bind     38..51
+                     /standard_name="Binding Region"
+ORIGIN      
+       {sequence}
+//
+"""
+    ),  # 1 aatgatacgg cgaccaccga gatctacacn nnnnnnntcg tcggcagcgt c
+}
+
+OLIGO_SEQS = {
+    # "fwd": "aatgatacggcgaccaccgagatctacacnnnnnnnntcgtcggcagcgtc",
+    "fwd": "aatgatacggcgaccaccgagatctacac{index}tcgtcggcagcgtc",
+    # "rev": "caagcagaagacggcatacgagatnnnnnnnngtctcgtgggctcgg"
+    "rev": "caagcagaagacggcatacgagat{index}gtctcgtgggctcgg",
+}
+
+
+def error(message):
+    print(f"ERROR: {message}")
+    sys.exit(1)
+
+
+def get_args():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("-o", "--output", default="clonmapper-oligos")
+    parser.add_argument("-i", "--input", default="indices.csv")
+    parser.add_argument(
+        "-f", "--format", default="tsv", choices=["gb", "gb-combined", "csv", "tsv"]
+    )
+
+    return parser.parse_args()
+
+
+def generate_genbank_seq(index, direction):
+    template = OLIGO_SEQS[direction].format(index=index)
+    split_template = [template[i : i + 10] for i in range(0, len(template), 10)]
+    template_lines = [
+        " ".join(split_template[i : i + 6]) for i in range(0, len(split_template), 6)
+    ]
+    labels = [f"{i:>9}" for i in range(1, len(template), 60)]
+    template_complete = "\n".join(
+        [" ".join([label, seq]) for label, seq in zip(labels, template_lines)]
+    )
+    return template_complete
+
+
+def reverse_complement(seq):
+    reverse_base = {"A": "T", "T": "A", "G": "C", "C": "G"}
+    return "".join([reverse_base[base] for base in seq][::-1])
+
+
+def make_genbank(index, direction):
+
+    gb = OLIGO_GBS[direction]
+    if direction == "fwd":
+        old, new = "i5-NNNNNNNN", f"i5-{index}"
+    else:
+        old, new = "i7-NNNNNNNN", f"i7-{index}"
+
+    return gb.replace(old, new).format(
+        date=datetime.today().strftime("%d-%b-%Y").upper(),
+        sequence=generate_genbank_seq(reverse_complement(index), direction),
+    )
+
+
+# def read_indices(filename):
+#     if filename.suffix != ".json":
+#         error("please provide a json file for the indices")
+#     else:
+#         with filename.open("r") as f:
+#             indices = json.load(f)
+#     for index, seqs in indices.items():
+#         for i,seq in enumerate(seqs):
+#             if len(seq) != 8:
+#                 error(f"Length of {index} sequence # {i}: {seq}. "
+#                       "Incorrect length, expected 8 bases")
+#     return indices
+
+
+def text_writer(seqs, output, format):
+    seps = {"csv": ",", "tsv": "\t"}
+    print(f"writing oligos to {output}.{format}")
+    with Path(f"{output}.{format}").open("w") as f:
+        for seq in seqs:
+            f.write(seps[format].join(seq) + "\n")
+
+
+def read_indices(filepath):
+    indices = {"i5": [], "i7": []}
+    with filepath.open("r") as csvfile:
+        reader = csv.DictReader(csvfile)
+        for row in reader:
+            indices[row["type"]].append(row["sequence"])
+    return indices
+
+
+def main():
+    args = get_args()
+    for k, v in args.__dict__.items():
+        print(f"{k:<10} > {v}")
+        # print(args)
+    indices = read_indices(Path(args.input))
+    if "sv" in args.format:
+        seqs = []
+        for i5 in indices["i5"]:
+            seqs.append(
+                (
+                    f"ClonMapper-FWD-i5-{i5}",
+                    OLIGO_SEQS["fwd"].format(index=reverse_complement(i5)),
+                )
+            )
+        for i7 in indices["i7"]:
+            seqs.append(
+                (
+                    f"ClonMapper-REV-i7-{i7}",
+                    OLIGO_SEQS["rev"].format(index=reverse_complement(i7)),
+                )
+            )
+        text_writer(seqs, args.output, args.format)
+
+    elif "gb" in args.format:
+        genbanks = {}
+        for i5 in indices["i5"]:
+            genbanks[f"ClonMapper-FWD-i5-{i5}"] = make_genbank(i5, "fwd")
+        for i7 in indices["i7"]:
+            genbanks[f"ClonMapper-REV-i7-{i7}"] = make_genbank(i7, "rev")
+
+        if args.format == "gb":
+            # TODO: make directory and save each to a file
+            print(f"saving genbanks in {args.output}")
+            outdir = Path.cwd() / args.output
+            outdir.mkdir(exist_ok=True)
+
+            for name, gb in genbanks.items():
+                with (outdir / f"{name}.gb").open("w") as f:
+                    f.write(gb)
+
+        elif args.format == "gb-combined":
+            print(f"saving genbank as {args.output}.gb")
+            with (Path(f"{args.output}.gb")).open("w") as f:
+                f.write("\n".join(genbanks.values()))
+
+        else:
+            error(f"unexcepected format: {args.format}")
+    else:
+        error(f"unexcepected format: {args.format}")
+
+
+if __name__ == "__main__":
+    main()
