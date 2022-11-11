@@ -94,20 +94,6 @@ def make_genbank(index, direction):
     )
 
 
-# def read_indices(filename):
-#     if filename.suffix != ".json":
-#         error("please provide a json file for the indices")
-#     else:
-#         with filename.open("r") as f:
-#             indices = json.load(f)
-#     for index, seqs in indices.items():
-#         for i,seq in enumerate(seqs):
-#             if len(seq) != 8:
-#                 error(f"Length of {index} sequence # {i}: {seq}. "
-#                       "Incorrect length, expected 8 bases")
-#     return indices
-
-
 def text_writer(seqs, output, format):
     seps = {"csv": ",", "tsv": "\t"}
     print(f"writing oligos to {output}.{format}")
@@ -129,7 +115,6 @@ def main():
     args = get_args()
     for k, v in args.__dict__.items():
         print(f"{k:<10} > {v}")
-        # print(args)
     indices = read_indices(Path(args.input))
     if "sv" in args.format:
         seqs = []
@@ -157,7 +142,6 @@ def main():
             genbanks[f"ClonMapper-REV-i7-{i7}"] = make_genbank(i7, "rev")
 
         if args.format == "gb":
-            # TODO: make directory and save each to a file
             print(f"saving genbanks in {args.output}")
             outdir = Path.cwd() / args.output
             outdir.mkdir(exist_ok=True)
