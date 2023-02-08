@@ -1,3 +1,5 @@
 index name,type,sequence
 [E/H/N/S]501,i5,GCGATCTA
 [H/N]701,i7,TAAGGCGA
+[E/H/N/S]502,i5,ATAGAGAG
+[H/N]702,i7,CGTACTAG
