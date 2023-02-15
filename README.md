@@ -30,3 +30,7 @@ There are a number of supported output formats.
 
 All of which are plain text. You can specify a tsv or csv which may be useful in ordering.
 Additionally you can output a genbank file for each sequence individually or all sequences in a single genbank file.
+
+## Resources
+
+See [Illumina](https://support-docs.illumina.com/SHARE/AdapterSeq/illumina-adapter-sequences.pdf) for list of typical indices.

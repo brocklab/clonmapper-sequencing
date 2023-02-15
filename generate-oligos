@@ -64,9 +64,9 @@ def get_args():
 
 def generate_genbank_seq(index, direction):
     template = OLIGO_SEQS[direction].format(index=index)
-    split_template = [template[i : i + 10] for i in range(0, len(template), 10)]
+    split_template = [template[i: i + 10] for i in range(0, len(template), 10)]
     template_lines = [
-        " ".join(split_template[i : i + 6]) for i in range(0, len(split_template), 6)
+        " ".join(split_template[i: i + 6]) for i in range(0, len(split_template), 6)
     ]
     labels = [f"{i:>9}" for i in range(1, len(template), 60)]
     template_complete = "\n".join(
@@ -81,7 +81,6 @@ def reverse_complement(seq):
 
 
 def make_genbank(index, direction):
-
     gb = OLIGO_GBS[direction]
     if direction == "fwd":
         old, new = "i5-NNNNNNNN", f"i5-{index}"
@@ -116,6 +115,7 @@ def main():
     for k, v in args.__dict__.items():
         print(f"{k:<10} > {v}")
     indices = read_indices(Path(args.input))
+
     if "sv" in args.format:
         seqs = []
         for i5 in indices["i5"]:
@@ -154,11 +154,6 @@ def main():
             print(f"saving genbank as {args.output}.gb")
             with (Path(f"{args.output}.gb")).open("w") as f:
                 f.write("\n".join(genbanks.values()))
-
-        else:
-            error(f"unexcepected format: {args.format}")
-    else:
-        error(f"unexcepected format: {args.format}")
 
 
 if __name__ == "__main__":
