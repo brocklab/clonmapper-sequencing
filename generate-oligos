@@ -105,6 +105,7 @@ def read_indices(filepath):
         reader = csv.DictReader(csvfile)
         return [Index(**row) for row in reader]
 
+
 def oligo_name(index):
     direction = "FWD" if index.type == "i5" else "REV"
     return f"ClonMapper-{direction}-{index.type}-{index.name}"
